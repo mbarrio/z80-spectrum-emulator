@@ -20,19 +20,17 @@ a86 video.8 vidtab.8 video.obj
 a86 cif.8 cif.obj
 a86 z80p1.8 z80p2.8 mdrvp1.8 mdrvp2.8 z80.obj
 a86 miscp1.8 miscp2.8 miscp3.8 misc.obj
-a86 vidtab.8 vidtab.obj
 a86 tables.8 tables.obj
 a86 voc.8 voc.obj
 a86 discp1.8 discp2.8 disc.obj
 bcc -1 -O -d -ml -c -oxtra.obj xtra.c
-tlink %1 xtra disc z80 misc voc video cif vidtab tables emul introscr,z80,z80;
+tlink %1 xtra disc z80 misc voc video cif tables emul introscr,z80,z80;
 z80
 del emul.obj
 del video.obj
 del cif.obj
 del z80.obj
 del misc.obj
-del vidtab.obj
 del tables.obj
 del voc.obj
 del disc.obj
