@@ -208,7 +208,7 @@ DISCiPLEIN27PType2RW:                           ; read/write type
         cmp     word ptr cs:[DISCiPLEDataLength],0    ; 0 bytes to read/write
         je      DISCiPLEIn27P1
         or      byte ptr cs:[di+StatusOff],10100011b
-        jmp     DISCiPLEIn27Pret                  ; jump to return value
+        jmp     DISCiPLEIn27PRet                  ; jump to return value
 
 DISCiPLEIn27Err:
         or      byte ptr cs:[di+StatusOff],16   ; error

@@ -867,11 +867,11 @@ SAVE_VECTORS:
 GET_VECTORS:
         XOR AX,AX
         MOV ES,AX
-        MOV AX,CS:TIMADR
+        MOV AX,CS:TIMADR W
         MOV BX,CS:TIMSEG
         MOV ES:[32],AX
         MOV ES:[34],BX
-        MOV AX,CS:KBDADR
+        MOV AX,CS:KBDADR W
         MOV BX,CS:KBDSEG
         MOV ES:[36],AX
         MOV ES:[38],BX
