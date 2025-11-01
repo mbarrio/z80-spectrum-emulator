@@ -16,7 +16,7 @@
 :version 5.1 or 6.10.
 :
 a86 emul.8 xdcb.8 xdcb.8 dd.8 dd.8 cb.8 ed.8 emul.obj
-a86 video.8 video.obj
+a86 video.8 vidtab.8 video.obj
 a86 cif.8 cif.obj
 a86 z80p1.8 z80p2.8 mdrvp1.8 mdrvp2.8 z80.obj
 a86 miscp1.8 miscp2.8 miscp3.8 misc.obj
