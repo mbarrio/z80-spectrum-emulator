@@ -749,14 +749,14 @@ DISCiPLEReadAdForFix:
         mov     byte ptr cs:[di+SectorOff],ah   ; store track number
         mov     byte ptr cs:[di+StatusOff],0    ; signal status OK
         or      byte ptr cs:[di+StatusOff],10100011b
-        jmp     DISCiPLEReadAddrR
+        jmp     DISCiPLEReadAddrRet
 
 DISCiPLEReadAddrErr:
         mov     word ptr cs:[DISCiPLEDataLength],0  ; signal 0 bytes to read
         pop     di
         mov     byte ptr cs:[di+StatusOff],00010000b    ; error
 
-DISCiPLEReadAddrR:
+DISCiPLEReadAddrRet:
         pop     dx
         pop     cx
         pop     bx
