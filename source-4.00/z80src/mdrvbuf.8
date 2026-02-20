@@ -1,0 +1,132 @@
+microdrive segment para public
+
+xherc equ 0
+plant equ 0
+
+;        mov ah,048
+;        mov bx,1090             ;>32*21f
+;        int 021
+;        if c jmp not_enough
+;        mov cs:mdrvseg,ax
+
+        org 0
+
+HELPMES:db "Syntax: Z80 [{-|/}switches ...] [filename[{.z80|.sna}]]",0d,0a
+        db 0d,0a
+        db "Display adapter options:",0d,0a
+        db "   -h        Hercules graphics",0d,0a
+#if xherc
+        db "   -xh       Extended Hercules graphics",0d,0a
+#endif
+#if plant
+        db "   -p        Plantronics graphics",0d,0a
+        db "   -q        Plantronics, different palette",0d,0a
+#endif
+        db "   -c        CGA graphics",0d,0a
+        db "   -e        EGA graphics",0d,0a
+        db "   -g        VGA graphics - 320x200x256 graphics mode 0x13",0d,0a
+        db "   -v        VGA graphics - text mode (fast; default)",0d,0a
+        db "   -xv       400-line VGA text mode (for some Tridents)",0d,0a
+        db "   -xb       Monochrome VGA (use with -g, -v, -xv)",0d,0a,'$'
+helpmes2:
+        db "Spectrum hardware options:",0d,0a
+        db "   -n        Emulate Spectrum without Interface I",0d,0a
+        db "   -s        Emulate Spectrum with SamRam",0d,0a
+        db "   -1[28]    Emulate Spectrum 128 (can be used with -n)",0d,0a
+        db "   -xk       Emulate Multiface 128 interface  (can't be used with SamRam)",0d,0a
+        db "   -9        Default to M.G.T. interface instead of Interface I",0d,0a
+        db "   -0d       M.G.T. = DISCiPLE ROM (default)",0d,0a
+;        db "   -0u       M.G.T. = UNIDOS ROM",0d,0a
+        db "   -0p       M.G.T. = PLUS D",0d,0a
+        db "Emulator configuration:",0d,0a
+        db "   -zN       Emulate the Spectrum at N% of original speed",0d,0a
+        db "   -xx       Hi-resolution colour emulation",0d,0a
+        db "   -r        Emulate the R register",0d,0a
+        db "   -l        Better (but slower) LDIR/LDDR emulation",0d,0a
+        db "   -yl, -yh  Low, high video synchronization mode",0d,0a
+        db "   -2        Emulate an Issue-2 Spectrum",0d,0a
+        db "   -dN       Set frame interrupt freq. to 100/N Hz (-d = -d1; -d2=default)",0d,0a
+        db "   -xr F     Use file F as standard Spectrum rom",0d,0a
+        db "RS232 redirection options:",0d,0a
+        db "   -aN       Redirect Spectrum RS232 output to LPTn",0d,0a
+        db "   -oN       Redirect Spectrum RS232 output to COMn",0d,0a
+        db "   -uF       Redirect file F to Spectrum RS232 input",0d,0a
+        db "   -iN       Redirect COMn to Spectrum RS232 input",0d,0a
+        db "   -wF       Redirect Spectrum RS232 output to file F",0d,0a,'$'
+helpmes3:
+        db "Sound switches:",0d,0a
+        db "   -0g       No sound",0d,0a
+        db "   -xa       Do NOT use AdLib for 128 sound  (use internal speaker instead)",0d,0a
+        db "   -xc       Use SoundBlaster CMS chips for noise (specify base addr if <> 220)",0d,0a
+        db "   -xi       Do NOT use internal PC speaker for '128 sound",0d,0a
+        db "   -0o       Do NOT use OPL3 extensions when available",0d,0a
+        db "   -0c       Disable 'ACB' AY-soundchip stereo effects",0d,0a
+        db "Joystick options:",0d,0a
+        db "   -km       Use MS Mouse to control Spectrum joystick",0d,0a
+        db "   -ka       Emulate Spectrum AMX mouse interface controlled by MS Mouse",0d,0a
+        db "   -kz       Use digital Zandbergen joystick",0d,0a
+        db "   -kk       Do not look for analogue or Zandbergen joystick",0d,0a
+        db "   -k1       Do not use 2nd analogue joystick as Sinclair 1 (1,2,3,4,5)",0d,0a
+        db "   -k2       Use 2nd joystick as Sinclair 1 always",0d,0a
+        db "   -jc       Emulate Cursor joystick (default)",0d,0a
+        db "   -jk       Emulate Kempston joystick",0d,0a
+        db "   -j2       Emulate Sinclair joystick 2 (keys 6,7,8,9 and 0)",0d,0a
+        db "   -ju<lf><rt><up><dn><fire>  Userdef joyst. ([=shft,]=symshft,/=enter,\=space)",0d,0a
+        db "   -xs       Default to shifted cursor keys (NumLock) in '128 mode",0d,0a,'$'
+helpmes4:
+        db "Tape and Microdrive options:",0d,0a
+        db "   -bN       Use LPTn for tape I/O",0d,0a
+        db "   -xo       Use SoundBlaster's A/D Converter for tape input",0d,0a
+        db "   -xq adr   Set base IO address for SoundBlaster (for -xo, -xc, default 0220)",0d,0a
+        db "   -xn rate  Set max sample rate for SoundBlaster tape input (default 10 kHz)",0d,0a
+        db "   -tv F     Play .VOC file F to 'ear' input",0d,0a
+        db "   -tz F     Play .TZX file F to 'ear' input",0d,0a
+        db "   -m N F    Insert cartridge file F{.MDR} into microdrive N",0d,0a
+        db "   -xm D     Select default directory D for .MDR files",0d,0a
+        db "   -td D     Select directory D for .TZX files & Multiple .TAP File mode",0d,0a
+        db "   -ts D     Specify default directory for Single .TAP File mode",0d,0a
+        db "   -tx       Do not display tape info window when loading or saving",0d,0a
+        db "   -tp       Pause after loading .TAP block",0d,0a
+        db "   The following switches all automatically select Single .TAP File mode:",0d,0a
+        db "   -ti F     Use F{.TAP} as tape input",0d,0a
+        db "   -to F     Use F{.TAP} as tape output (if exists, append)",0d,0a
+        db "   -tm       Mirror tape input to disk (Do also specify output file!)",0d,0a
+        db "   -te       Mirror tape input to disk in EXACT mode",0d,0a
+        db "   -tw       Don't wrap load pointer of tapefile at end",0d,0a,'$'
+helpmes5:
+        db "Miscellaneous switches:",0d,0a
+        db "   -xl N     Select LPTn for ZX-Printer output",0d,0a
+        db "   -xj       'Off-line=wait' instead of 'Off-line=No ZX Printer'",0d,0a
+        db "   -0e       Epson printer (for ZX PRINTER and M.G.T. type)",0d,0a
+        db "   -0h       HP PCL printer (for ZX PRINTER and M.G.T. type)",0d,0a
+        db "   -0sND     Set Disciple/+D drive N to D:  (default -0s1A and -0s2B)",0d,0a
+        db "   -0i       Disable Disciple interrupt",0d,0a
+        db "   -0f N     Issue a Form Feed every N ZX Printer lines on HP PCL printer",0d,0a
+        db "   -xp D     Select default directory D for .Z80 snapshot files",0d,0a
+        db "   -xz       Assume AZERTY keyboard layout",0d,0a
+        db "   -xt       Use as little memory as possible retaining full functionality",0d,0a
+        db "   -xu       Use as little memory as possible; disable Hi Color Res emulation",0d,0a
+        db "   -00       Do not show intro screen, and don't pause at startup",0d,0a
+        db "   -xe       Do not use expanded memory",0d,0a
+        db "   -xg       Log all outs to FE in OUT log file, not only ones that make noise",0d,0a
+        db "   -xy       Dump trace of program in .OUT file",0d,0a
+        db "   -0m F     Build map of opcode locations in file F; see docs for details!",0d,0a
+        db "   -xw       Run in Windows compatibility mode",0d,0a
+        db "   -kxABCD   Press key #CD for scancode #AB.",0d,0a
+        db "   -xd####   Generate an 8086 INT 3 at Z80 hex address ####",0d,0a
+        db "   -xf       Switch full 16K of Interface I ROM",0d,0a
+        db "   -?        This help page",0d,0a,'$'
+
+keymes1:
+        db "Press a key...",0d,'$'
+keymes2:
+        db "              ",0d,'$'
+        db "$"
+
+        org 0
+
+_microdrive_buffer:
+microdrive_buffer:  db 17440 dup ?
+
+microdrive ends
+

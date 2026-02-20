@@ -1,0 +1,27 @@
+
+This directory contains the source files of WinZ80 version 4.00.
+WinZ80 is copyright 1/1/1999 Gerton Lunter.  The source files may
+not be distributed or used in other programs.
+
+To compile vz80d.vxd, use the Makefile.  You need MASM version 6,
+the include files vmm.inc and debug.inc, and the Microsoft 32 bit
+linker.
+
+The files dbgscan.l and asm.l generate lexical analysers for the
+monitor/debugger and the assembler, respectively.  Pull these through
+flex to yield lexer.c and asm-lex.c.  For convenience, these two
+output files have been included.
+
+The source file for asmbison.c (also included) is asm.y.  First,
+pre-process this file using e.g. GCC to expand all #define's.  The
+result was called asm-pre.y.  Then run bison on this file to get
+asmbison.c.
+
+The other files were compiled using Borland C for Windows.  Use the
+large memory model, set the Far Data Treshold to a low value to
+prevent the automatic data segment from overflowing, and include the
+libraries bwcc, import and crtldll.  Assemble the .asm files debug,
+wavetbl, emulcb, ddfd, emul, xdcb, inout, core, vid, vid1, vid4,
+vid8, vid16, vid24, vid32; the others are include files.
+
+

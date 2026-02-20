@@ -1,0 +1,571 @@
+startup segment para public
+
+; Contains routines for VGA graphics mode (mode 0x13)
+
+init_vga2:
+        push ds
+        push es
+        push cs
+        push cs
+        pop ds
+        pop es
+
+        call get_numscanlines
+        mov byte cs:gmod,6              ;vga2
+        call prvk
+        mov ax,013
+        int 010                         ;select mode
+        cmp byte cs:greyvga,0ff
+        jnz keep_blue2
+        mov cs:b[offset vga_palette+3],25
+        mov cs:b[offset vga_palette+27],25
+keep_blue2:
+        xor bx,bx                       ;offset
+        mov cx,16                       ;16 regs
+        mov dx,offset vga_palette
+        mov ax,01012                    ;set blk of DAC registers
+        int 010
+        cmp byte cs:greyvga,0ff
+        jnz geen_robkleuren2
+        mov ax,0101b
+        xor bx,bx
+        mov cx,16
+        int 010
+geen_robkleuren2:
+        call init_vgaworkspace
+        mov ax,0a000
+        mov es,ax
+        cld
+        mov di,0
+        mov cx,64000/2
+        mov ax,0808
+        rep stosw
+        pop es
+        pop ds
+        ret
+
+
+;see vgaborder_update in video.8.  Clears border; also used in hcr mode.
+
+vgaborder_upd_2:
+        push es
+        push di
+        mov ax,0a000
+        mov es,ax
+        xor di,di
+        mov cx,160*4+16
+        cmp byte cs:_vocplay,0
+        jne vga_b_black         ;during tzx/voc playback, only overscan
+        mov al,cs:newbor
+        and al,7
+vga_b_black:
+        mov ah,al
+        cld
+        rep stosw
+        mov cx,192
+restore_brder2:
+        add di,256
+        push cx
+        mov cx,32
+        rep stosw
+        pop cx
+        loop restore_brder2
+        mov cx,160*4-16
+        rep stosw
+        pop di
+        pop es
+        ret
+
+;main vga2 video routines
+
+vga2_emul:
+        add ax,offset vga_workspace
+        mov cs:w[offset atrpokvga21],ax
+        mov cs:w[offset atrpokvga22],ax
+        cld
+        cmp byte cs:coloremu,0ff
+        jne vga2_emul_normal
+        call vga_emul_hcrmode       ;copies screen to hcr buffer & invalidates
+vga2_emul_normal:                    ; ordinary shadow buffer
+;        cmp cs:word cputype,386
+;        if ae jmp vga_emul_386
+        mov si,22528
+vga2_3blocks:
+        mov cx,768/3
+        mov di,si
+vga2_attr:
+        repz cmpsb
+        jz vga2_scr
+vga2_attr2:
+        push di
+        push cx
+
+        dec si
+        add di,si
+        sub di,45057
+        mov di,cs:w[di+vga_attr_addrs]
+        mov bx,offset vga_workspace
+atrpokvga22 equ $-2
+        mov al,[si]
+        mov es:[si],al
+        cs:xlatb
+        mov ah,al
+        shr ah,1
+        shr ah,1
+        shr ah,1
+        shr ah,1                ;now both al and ah carry bright bit
+        and ax,0f0f
+        mov cx,ax
+
+        mov bx,si
+        add bh,bh
+        add bh,bh
+        add bh,bh
+        sub bh,128              ;now bx points to bitmap
+
+        mov dl,8
+vga2_atrloop:
+        mov al,[bx]
+        mov es:[bx],al
+        push es
+        push dx
+        mov dx,0a000
+        mov es,dx
+        mov ah,4
+vga2_atrbitloop:
+        mov dx,cx
+        shl al,1
+        if nc mov dl,ch
+        shl al,1
+        if c mov dh,cl
+        mov es:[di],dx
+        inc di
+        inc di
+        dec ah
+        jne vga2_atrbitloop
+        pop dx
+        pop es
+        add di,320-8
+        inc bh
+        dec dl
+        jnz vga2_atrloop
+
+        pop cx
+        pop di
+        inc si
+
+        cmp al,al
+        jmp vga2_attr
+
+vga2_scr:
+        mov cl,3
+        shl si,cl
+        sub si,08800            ;converted back to bitmap addr
+        mov di,si
+        mov cx,6144/6
+        mov bp,ds
+        cmp al,al
+vga2_scremul_86:
+        repz cmpsw
+        jz vga2_nextblock
+        push cx
+        sub si,2
+        mov bx,si
+        shr bh,1
+        shr bh,1
+        shr bh,1
+        add bh,80                   ;offset to attr buffer
+        mov ax,[bx]                 ;get attr word
+        mov bx,offset vga_workspace
+atrpokvga21 equ $-2
+        cs:xlatb
+        xchg al,ah
+        cs:xlatb
+        mov cx,ax
+        shr cx,1
+        shr cx,1
+        shr cx,1
+        shr cx,1
+        xchg ah,cl
+        and ax,0f0f
+        and cx,0f0f
+        mov bx,cs:[si+vga_scrn_addrs-16384]
+        push ax
+        lodsw
+        mov es:[di-2],ax
+        push ax
+        mov dx,0a000
+        mov ds,dx
+        mov ah,4
+vga2_scremul_bits:
+        mov dx,cx
+        shl al,1
+        if nc mov dl,ch
+        shl al,1
+        if c mov dh,cl
+        mov [bx],dx
+        inc bx
+        inc bx
+        dec ah
+        jne vga2_scremul_bits
+        pop ax
+        pop cx
+        mov al,4
+vga2_scremul_bits1:
+        mov dx,cx
+        shl ah,1
+        if nc mov dl,ch
+        shl ah,1
+        if c mov dh,cl
+        mov [bx],dx
+        inc bx
+        inc bx
+        dec al
+        jne vga2_scremul_bits1
+        pop cx
+        mov ds,bp
+        xor al,al
+        jmp vga2_scremul_86
+
+vga2_nextblock:
+        mov cl,3
+        shr si,cl
+        add si,20480
+        cmp si,23296
+        if ne jmp vga2_3blocks
+end_vid_update_vga2:
+        cmp byte cs:coloremu,0ff
+        if ne jmp end_vid_update
+        mov es,cs:vgahcrborbuf
+        mov al,cs:newbor
+        mov es:[2],al
+        mov es:w[0],0
+        mov byte cs:bornochange,-3
+        mov byte cs:vgahcrborbufptr,3
+        jmp end_vid_update
+
+
+
+
+;************************************************************************
+;
+;Code for hi color emulation in vga2 mode
+;
+;************************************************************************
+
+ihc_vga2:
+        mov dx,0a000
+        mov di,16384+164
+        mov si,164
+        mov cx,(192*40)/2 - 4           ;192 lines of 40 bytes, minus 2x2 words
+        mov bx,offset vga_workspace
+        add bx,cs:fstate
+        mov bp,ds
+        cmp al,al
+ihcv2_screen_86:
+        repz
+        cmpsw
+        jz ihcv2_attr_86
+
+        push cx
+        mov ax,[si+8190]                ;get attr word
+        mov [di+8190],ax
+        cs:xlatb
+        xchg al,ah
+        cs:xlatb
+        mov cx,ax
+        shr cx,1
+        shr cx,1
+        shr cx,1
+        shr cx,1
+        xchg ah,cl
+        and ax,0f0f
+        and cx,0f0f
+        push ax
+
+        mov ax,[si-2]                   ;get bitmap bits
+        mov [di-2],ax
+        push ax
+
+        add si,si                       ;compute address on VGA screen
+        add si,si
+        add si,si
+        sub si,16
+
+        mov dx,0a000
+        mov ds,dx
+        mov ah,4
+ihcv2_scremul_bits:
+        mov dx,cx
+        shl al,1
+        if nc mov dl,ch
+        shl al,1
+        if c mov dh,cl
+        mov [si],dx
+        inc si
+        inc si
+        dec ah
+        jne ihcv2_scremul_bits
+        pop ax
+        pop cx
+        mov al,4
+ihcv2_scremul_bits1:
+        mov dx,cx
+        shl ah,1
+        if nc mov dl,ch
+        shl ah,1
+        if c mov dh,cl
+        mov [si],dx
+        inc si
+        inc si
+        dec al
+        jne ihcv2_scremul_bits1
+
+        mov si,di
+        sub si,16384
+        mov ds,bp
+        pop cx
+        cmp al,al
+        jmp ihcv2_screen_86
+
+ihcv2_attr_86:
+        mov si,164+8192
+        mov di,164+8192+16384
+        mov cx,(192*40)/2 - 4           ;192 lines of 40 bytes, minus 2x2 words
+        cmp al,al
+ihcv2_atrloop_86:
+        repz
+        cmpsw
+        jz ihcv2_end_86
+
+        push cx
+        mov ax,[si-2]                   ;get attr word
+        mov [di-2],ax
+        cs:xlatb
+        xchg al,ah
+        cs:xlatb
+        mov cx,ax
+        shr cx,1
+        shr cx,1
+        shr cx,1
+        shr cx,1
+        xchg ah,cl
+        and ax,0f0f
+        and cx,0f0f
+        push ax
+
+        mov ax,[si-8194]                ;get bitmap bits
+        push ax
+
+        add si,si                       ;compute address on VGA screen
+        add si,si
+        add si,si
+        sub si,16
+
+        mov dx,0a000
+        mov ds,dx
+        mov ah,4
+ihcv2_atremul_bits:
+        mov dx,cx
+        shl al,1
+        if nc mov dl,ch
+        shl al,1
+        if c mov dh,cl
+        mov [si],dx
+        inc si
+        inc si
+        dec ah
+        jne ihcv2_atremul_bits
+        pop ax
+        pop cx
+        mov al,4
+ihcv2_atremul_bits1:
+        mov dx,cx
+        shl ah,1
+        if nc mov dl,ch
+        shl ah,1
+        if c mov dh,cl
+        mov [si],dx
+        inc si
+        inc si
+        dec al
+        jne ihcv2_atremul_bits1
+
+        mov si,di
+        sub si,16384
+        mov ds,bp
+        pop cx
+        cmp al,al
+        jmp ihcv2_atrloop_86
+
+ihcv2_end_86:
+        pop es
+        pop ds
+        pop di
+        pop si
+        pop bp
+        pop dx
+        pop cx
+        pop ax
+        jmp bare_inter_handler
+
+
+;
+;Now hi-color resolution border code
+;
+
+ihcv2_border:
+        mov ax,0a000
+        mov es,ax
+        call ihcv2_border4_86             ;display first 4 lines
+        call ihcv2_border4_86
+        call ihcv2_border4_86
+        call ihcv2_border4_86
+        mov cx,192
+ihcv2_borderloop_86:
+        add dx,cs:tconst                ;next line
+        cmp bx,dx                       ;is border fixed at this line?
+        jb ihcv2_border3_86               ;if not jump
+        stosw                           ;2 bytes = 1 attr
+        stosw
+        stosw
+        stosw
+        stosw                           ;2 bytes = 1 attr
+        stosw
+        stosw
+        stosw
+        stosw                           ;2 bytes = 1 attr
+        stosw
+        stosw
+        stosw
+        stosw                           ;2 bytes = 1 attr
+        stosw
+        stosw
+        stosw
+        add di,256
+        stosw                           ;2 bytes = 1 attr
+        stosw
+        stosw
+        stosw
+        stosw                           ;2 bytes = 1 attr
+        stosw
+        stosw
+        stosw
+        stosw                           ;2 bytes = 1 attr
+        stosw
+        stosw
+        stosw
+        stosw
+        stosw
+        stosw
+        stosw
+ihcv2_borderloop_loop_86:
+        loop ihcv2_borderloop_86
+        call ihcv2_border4_86                ;display final 4 lines
+        call ihcv2_border4_86
+        call ihcv2_border4_86
+        call ihcv2_border4_86
+        mov al,cs:newbor
+        mov b[2],al
+        mov w[0],0                      ;Store OUT at time 0
+        mov word cs:vgahcrborbufptr,3
+        pop es
+        pop ds
+        pop di
+        pop si
+        pop dx
+        pop cx
+        pop ax
+        ret
+
+ihcv2_border3_86:
+        sub dx,cs:tconst                ;restore actual value of T
+        push cx
+        mov cx,0404                     ;4 bytes
+ihcv2_borderleft_86:
+        cmp bx,dx                       ;has there been an OUT before T?
+        jae ihcv2_noborchange_86          ;If not jump
+ihcv2_bl_next_86:
+        inc si                          ;skip color of last OUT
+        lodsw                           ;new OUT time
+        cmp ax,dx
+        jb ihcv2_bl_next_86
+        mov bx,ax
+        mov ah,[si-3]
+        and ax,0700
+        mov al,ah
+ihcv2_noborchange_86:
+        stosw                           ;store byte
+        stosw
+        stosw
+        stosw
+        add dx,4
+        dec ch
+        jne ihcv2_borderleft_86
+        add dx,32*4
+        add di,256
+        mov cx,0404                     ;4 bytes at the right
+ihcv2_borderright_86:
+        cmp bx,dx                       ;has there been an OUT before T?
+        jae ihcv2_noborchanger_86         ;If not jump
+ihcv2_br_next_86:
+        inc si                          ;skip color
+        lodsw
+        cmp ax,dx
+        jb ihcv2_br_next_86
+        mov bx,ax
+        mov ah,[si-3]
+        and ax,0700
+        mov al,ah
+ihcv2_noborchanger_86:
+        stosw                           ;store byte
+        stosw
+        stosw
+        stosw
+        add dx,4
+        dec ch
+        jne ihcv2_borderright_86
+        sub dx,128+32                   ;go back to time of leftmost borderbyte
+        add dx,cs:tconst                ;next line
+        pop cx
+        jmp ihcv2_borderloop_loop_86
+
+ihcv2_border4_86:                         ;Display a whole line
+        add dx,cs:tconst                ;next line
+        cmp bx,dx                       ;is border fixed at this line?
+        jb ihcv2_border43_86              ;if not jump
+        mov cx,160
+        rep stosw
+        ret
+ihcv2_border43_86:
+        sub dx,cs:tconst                ;restore actual value of T
+        mov cx,02804                    ;40 bytes
+ihcv2_border44_86:
+        cmp bx,dx                       ;has there been an OUT before T?
+        jae ihcv2_noborchange4_86         ;If not jump
+ihcv2_bl_next4_86:
+        inc si                          ;skip color
+        lodsw
+        cmp ax,dx
+        jb ihcv2_bl_next4_86
+        mov bx,ax
+        mov ah,[si-3]
+        and ax,0700
+        mov al,ah
+ihcv2_noborchange4_86:
+        stosw                           ;store byte
+        stosw
+        stosw
+        stosw
+        add dx,4
+        dec ch
+        jne ihcv2_border44_86
+        sub dx,128+32                   ;(40*4)
+        add dx,cs:tconst                ;horizontal retrace
+        ret
+
+
+
+
+startup ends
+
