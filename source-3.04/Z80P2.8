@@ -1784,7 +1784,7 @@ Chkdiscac:
         mov ax,0ff00                    ;Low 8k=ram (0), Hi 8k=rom (0ff)
         cmp byte cs:_disctype,8         ;0=disc,8=unidos,16=plus d
         if nc xchg al,ah                ;Not so with unidos (?) or plus d
-        mov es:rompage1,ax
+        mov es:rompage1 w,ax
         jmp chkpageif1d         ; page DISCiPLE  ***** HMc *****
 
 load_romblock:

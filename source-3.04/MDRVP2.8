@@ -158,7 +158,7 @@ pagediscin:                             ; ***** HMc *****
         mov ax,0ff00                    ;Low 8k=ram (0), Hi 8k=rom (0ff)
         cmp byte es:_disctype,8         ;0=disc,8=unidos,16=plus d
         if nc xchg al,ah                ;Not so with unidos (?) or plus d
-        mov es:rompage1,ax
+        mov es:rompage1 w,ax
 pagediscin1:                            ; ***** HMc *****
         pop ax                          ; ***** HMc *****
         retf                            ; return  ***** HMc *****
@@ -474,7 +474,7 @@ PAGEIN_IF1_ROM:
         mov ax,0ff00            ;Low 8k=ram (0), Hi 8k=rom (0ff)
         cmp byte es:_disctype,8 ;0=disc,8=unidos,16=plus d
         if nc xchg al,ah        ;Not so with unidos (?) or plus d
-        mov es:rompage1,ax
+        mov es:rompage1 w,ax
         jmp pagein_if1c         ; ***** HMc *****
 
 Pagein_if1:
@@ -609,7 +609,7 @@ out_128_s_freq:
         push dx
         and bl,6
         push bx
-        mov bx,cs:b[offset sstate+bx]
+        mov bx,cs:b[offset sstate+bx] w
         and bx,4095                     ;keep only 12 bits
         cmp bx,17
         if be mov bx,18
@@ -1300,14 +1300,14 @@ swap_noems:
 no_ems1:                        ; ***** HMc *****
         mov cx,8192+255         ; ***** HMc *****
 no_ems2:                        ; ***** HMc *****
-        mov cs:actrom2,cl       ;0ff if entire 16K switched, otherwise other rom
+        mov cs:actrom2 b,cl       ;0ff if entire 16K switched, otherwise other rom
         jmp not_rompage
 not_if1swap:
         test ah                 ;Pageing a rom?
         jnz not_rompage
-        cmp al,cs:actrom2       ;Is 2nd part of rom OK already?
+        cmp al,cs:actrom2 b      ;Is 2nd part of rom OK already?
         if z mov ch,4096/256    ;If so, only switch back first 8K of it
-        mov cs:actrom2,al
+        mov cs:actrom2 b,al
 not_rompage:
         xor cl,cl
         ror ah,1
@@ -1686,7 +1686,7 @@ loadthistoo1:
         if e dec cs:rommod              ;temporarily use code '2' for 48k+mgt
         and cs:rommod,4                 ;only keep 128k/48k bit
         and si,3                        ;only keep none/if1/mgt bit
-        or cs:rommod,si
+        or cs:rommod w,si
         cmp cs:rommod,2
         if e inc cs:rommod              ;reset to code '3' again
         jmp lzf_useoldsettings
